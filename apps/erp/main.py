@@ -32,14 +32,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration
-origins = os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")
+# CORS Configuration - Restrictive defaults for security
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+allowed_methods = os.getenv("ALLOWED_METHODS", "GET,POST,PUT,DELETE,PATCH").split(",")
+allowed_headers = os.getenv("ALLOWED_HEADERS", "Content-Type,Authorization").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=allowed_methods,
+    allow_headers=allowed_headers,
 )
 
 # Register Modules if available

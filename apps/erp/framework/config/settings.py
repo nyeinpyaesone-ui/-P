@@ -13,7 +13,7 @@ APPS_DIR = BASE_DIR / "apps"
 # Database configuration
 DATABASE_CONFIG = {
     "user": os.getenv("POSTGRES_USER", "erp"),
-    "password": os.getenv("POSTGRES_PASSWORD", "erp_secure_password_change_me"),
+    "password": os.getenv("POSTGRES_PASSWORD"),  # Required in production, no default
     "host": os.getenv("POSTGRES_HOST", "postgres"),
     "port": int(os.getenv("POSTGRES_PORT", "5432")),
     "database": os.getenv("POSTGRES_DB", "erp_core"),
@@ -39,7 +39,7 @@ REDIS_URL = os.getenv("REDIS_URL", f"redis://{REDIS_CONFIG['host']}:{REDIS_CONFI
 # RabbitMQ configuration
 RABBITMQ_CONFIG = {
     "user": os.getenv("RABBITMQ_DEFAULT_USER", "erp"),
-    "password": os.getenv("RABBITMQ_DEFAULT_PASS", "erp_secure_password_change_me"),
+    "password": os.getenv("RABBITMQ_DEFAULT_PASS"),  # Required in production, no default
     "host": os.getenv("RABBITMQ_HOST", "rabbitmq"),
     "port": int(os.getenv("RABBITMQ_PORT", "5672")),
 }
@@ -52,7 +52,9 @@ RABBITMQ_URL = os.getenv(
 # Application settings
 APP_ENV = os.getenv("APP_ENV", "production")
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
-SECRET_KEY = os.getenv("SECRET_KEY", "change_this_to_a_secure_random_string")
+SECRET_KEY = os.getenv("SECRET_KEY")  # Required in production, no default
+if not SECRET_KEY and APP_ENV == "production":
+    raise ValueError("SECRET_KEY must be set in production environment")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_FORMAT = os.getenv("LOG_FORMAT", "json")
 
