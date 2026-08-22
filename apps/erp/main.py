@@ -2,10 +2,32 @@
 ERP03 v1.0.0 - Main Application Entry Point
 Modular Monolith Architecture with Event-Driven Capabilities
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 import os
+import logging
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+# Database setup
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://erp:erp@postgres:5432/erp_core"
+)
+
+# Create async engine
+engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
+AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # Import module routers
 try:
@@ -15,21 +37,50 @@ try:
     from apps.erp.modules.mfg.router import router as mfg_router
     from apps.erp.modules.crm.router import router as crm_router
     MODULES_LOADED = True
-except ImportError:
+    logger.info("All ERP modules loaded successfully")
+except ImportError as e:
     MODULES_LOADED = False
+    logger.error(f"Failed to load ERP modules: {e}")
+
+
+async def get_db_session():
+    """Dependency for database session."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize DB connections
+    """Application lifespan manager for startup/shutdown events."""
+    # Startup: Initialize DB connections and verify connectivity
+    logger.info("Starting ERP03 application...")
+    try:
+        async with engine.begin() as conn:
+            await conn.execute("SELECT 1")
+        logger.info("Database connection established")
+    except Exception as e:
+        logger.warning(f"Database not yet available: {e}")
     yield
     # Shutdown: Close DB connections
-    pass
+    logger.info("Shutting down ERP03 application...")
+    await engine.dispose()
+
 
 app = FastAPI(
     title="ERP03 Enterprise System",
     version="1.0.0",
     description="Core ERP modules: Finance, HCM, SCM, Manufacturing, CRM",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
 )
 
 # CORS Configuration - Restrictive defaults for security
@@ -45,6 +96,33 @@ app.add_middleware(
     allow_headers=allowed_headers,
 )
 
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle Pydantic validation errors with detailed messages."""
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "error": "validation_error",
+            "detail": exc.errors(),
+            "body": exc.body
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle unhandled exceptions gracefully."""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": "internal_error",
+            "detail": "An unexpected error occurred"
+        }
+    )
+
+
 # Register Modules if available
 if MODULES_LOADED:
     app.include_router(finance_router, prefix="/api/v1/finance", tags=["Finance"])
@@ -53,6 +131,63 @@ if MODULES_LOADED:
     app.include_router(mfg_router, prefix="/api/v1/mfg", tags=["Manufacturing"])
     app.include_router(crm_router, prefix="/api/v1/crm", tags=["CRM"])
 
+
 @app.get("/healthz")
 async def health_check():
-    return {"status": "ok", "version": "1.0.0", "modules": MODULES_LOADED}
+    """
+    Health check endpoint for monitoring and load balancers.
+    Returns status of application and dependencies.
+    """
+    health_status = {
+        "status": "ok",
+        "version": "1.0.0",
+        "modules": MODULES_LOADED,
+        "db": "unknown",
+        "redis": "unknown",
+        "rabbitmq": "unknown"
+    }
+    
+    # Check database connectivity
+    try:
+        async with engine.begin() as conn:
+            await conn.execute("SELECT 1")
+        health_status["db"] = "connected"
+    except Exception as e:
+        health_status["db"] = f"disconnected: {str(e)}"
+        health_status["status"] = "degraded"
+    
+    # Check Redis connectivity
+    try:
+        import redis.asyncio as redis
+        redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
+        await redis_client.ping()
+        health_status["redis"] = "connected"
+        await redis_client.close()
+    except Exception as e:
+        health_status["redis"] = f"disconnected: {str(e)}"
+        health_status["status"] = "degraded"
+    
+    # Check RabbitMQ connectivity
+    try:
+        import aio_pika
+        rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://erp:erp@rabbitmq:5672//")
+        connection = await aio_pika.connect_robust(rabbitmq_url)
+        await connection.close()
+        health_status["rabbitmq"] = "connected"
+    except Exception as e:
+        health_status["rabbitmq"] = f"disconnected: {str(e)}"
+        health_status["status"] = "degraded"
+    
+    status_code = 200 if health_status["status"] == "ok" else 503
+    return JSONResponse(status_code=status_code, content=health_status)
+
+
+@app.get("/")
+async def root():
+    """Root endpoint with API information."""
+    return {
+        "name": "ERP03 Enterprise System",
+        "version": "1.0.0",
+        "documentation": "/docs",
+        "health": "/healthz"
+    }
