@@ -8,7 +8,7 @@ uvicorn[standard]==0.27.0
 # ML & AI Core
 numpy==1.26.3
 pandas==2.2.0
-scikit-learn==1.4.0
+scikit-learn==1.5.0
 
 # Deep Learning (optional, uncomment if needed)
 # torch==2.1.2
@@ -27,7 +27,7 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 
 # NLP Tools
-nltk==3.8.1
+nltk==3.10.0
 spacy==3.7.2
 
 # Vector Search
@@ -37,10 +37,10 @@ faiss-cpu==1.7.4
 structlog==24.1.0
 
 # Testing
-pytest==7.4.4
+pytest==9.0.3
 pytest-asyncio==0.23.3
 httpx==0.26.0
 
 # Utilities
 python-dateutil==2.8.2
-requests==2.31.0
+requests==2.33.0
