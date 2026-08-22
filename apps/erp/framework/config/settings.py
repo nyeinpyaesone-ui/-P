@@ -50,7 +50,7 @@ RABBITMQ_URL = os.getenv(
 )
 
 # Application settings
-APP_ENV = os.getenv("APP_ENV", "production")
+APP_ENV = os.getenv("APP_ENV", "development")
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 SECRET_KEY = os.getenv("SECRET_KEY")  # Required in production, no default
 if not SECRET_KEY and APP_ENV == "production":

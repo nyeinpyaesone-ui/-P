@@ -3,7 +3,7 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
-@router.get("/employees", summary="List Employees")
+@router.get("/", summary="List Employees")
 async def list_employees():
     return {"employees": [], "total": 0}
 
