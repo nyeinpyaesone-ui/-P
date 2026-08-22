@@ -32,7 +32,15 @@ router = APIRouter()
 
 
 async def get_db():
-    """Dependency for getting async database session."""
+    """
+    Provide a database session for a request and manage its transaction lifecycle.
+    
+    Yields:
+        AsyncSession: An active asynchronous database session.
+    
+    Raises:
+        Exception: Re-raises exceptions encountered during request processing after rolling back the transaction.
+    """
     from apps.erp.main import AsyncSessionLocal
     async with AsyncSessionLocal() as session:
         try:
@@ -51,14 +59,15 @@ async def list_accounts(
     limit: int = 100,
     db: AsyncSession = Depends(get_db)
 ) -> List[dict]:
-    """Retrieve all accounts in the chart of accounts.
+    """
+    Retrieve accounts from the chart of accounts with pagination.
     
-    Args:
-        skip: Number of records to skip for pagination
-        limit: Maximum number of records to return
-        
+    Parameters:
+        skip (int): Number of accounts to skip.
+        limit (int): Maximum number of accounts to return.
+    
     Returns:
-        List of account records
+        List[dict]: The selected account records.
     """
     result = await db.execute(select(Account).offset(skip).limit(limit))
     accounts = result.scalars().all()
@@ -70,16 +79,16 @@ async def create_account(
     account: AccountCreate,
     db: AsyncSession = Depends(get_db)
 ) -> dict:
-    """Create a new account in the chart of accounts.
+    """Create an account in the chart of accounts.
     
     Args:
-        account: Account data including code, name, type, and currency
-        
+        account: Account details, including its code, name, type, and currency.
+    
     Returns:
-        Created account with generated ID and timestamp
-        
+        The newly created account with its generated identifier and timestamp.
+    
     Raises:
-        HTTPException: If account code already exists
+        HTTPException: If the account code is already in use.
     """
     # Check for duplicate account code
     result = await db.execute(
@@ -100,10 +109,11 @@ async def create_account(
 
 @router.get("/summary", response_model=dict, summary="Financial Summary")
 async def financial_summary(db: AsyncSession = Depends(get_db)) -> dict:
-    """Get financial summary across all account types.
+    """
+    Summarize balances across active accounts by account type.
     
     Returns:
-        Aggregated financial metrics including assets, liabilities, equity, revenue, and expenses
+        dict: Totals for assets, liabilities, equity, revenue, and expenses.
     """
     result = await db.execute(select(Account))
     accounts = result.scalars().all()
@@ -139,14 +149,15 @@ async def list_journal_entries(
     limit: int = 100,
     db: AsyncSession = Depends(get_db)
 ) -> List[dict]:
-    """Retrieve all journal entries.
+    """
+    Retrieve paginated journal entries.
     
-    Args:
-        skip: Number of records to skip for pagination
-        limit: Maximum number of records to return
-        
+    Parameters:
+        skip (int): Number of entries to skip.
+        limit (int): Maximum number of entries to return.
+    
     Returns:
-        List of journal entry records
+        List[dict]: The selected journal entries.
     """
     result = await db.execute(select(JournalEntry).offset(skip).limit(limit))
     entries = result.scalars().all()

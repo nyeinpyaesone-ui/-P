@@ -19,7 +19,15 @@ async def list_bills_of_material() -> List[dict]:
 
 @router.post("/bom", response_model=BillOfMaterialResponse, status_code=status.HTTP_201_CREATED, summary="Create BOM")
 async def create_bill_of_material(bom: BillOfMaterialCreate) -> dict:
-    """Create a new bill of material."""
+    """
+    Create a new bill of material.
+    
+    Parameters:
+        bom (BillOfMaterialCreate): Bill of material details.
+    
+    Returns:
+        dict: The created bill of material with its identifier and number.
+    """
     return {"id": 1, "bom_number": "BOM-001", **bom.model_dump()}
 
 

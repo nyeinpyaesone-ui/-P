@@ -44,7 +44,15 @@ except ImportError as e:
 
 
 async def get_db_session():
-    """Dependency for database session."""
+    """
+    Provide a database session for request-scoped operations.
+    
+    Yields:
+        AsyncSession: The active database session.
+    
+    The session is committed after successful use, rolled back when an exception
+    occurs, and closed afterward.
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -58,7 +66,12 @@ async def get_db_session():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager for startup/shutdown events."""
+    """
+    Manage application startup and shutdown resources.
+    
+    Parameters:
+    	app (FastAPI): The application instance whose lifespan is being managed.
+    """
     # Startup: Initialize DB connections and verify connectivity
     logger.info("Starting ERP03 application...")
     try:
@@ -99,7 +112,15 @@ app.add_middleware(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle Pydantic validation errors with detailed messages."""
+    """
+    Format request validation failures as a structured HTTP 422 response.
+    
+    Parameters:
+        exc (RequestValidationError): The validation failure containing error details and the request body.
+    
+    Returns:
+        JSONResponse: A response containing the validation error details and request body.
+    """
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
@@ -112,7 +133,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    """Handle unhandled exceptions gracefully."""
+    """
+    Handle an unhandled application exception with a generic error response.
+    
+    Returns:
+        JSONResponse: An HTTP 500 response containing a generic internal error message.
+    """
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -135,8 +161,12 @@ if MODULES_LOADED:
 @app.get("/healthz")
 async def health_check():
     """
-    Health check endpoint for monitoring and load balancers.
-    Returns status of application and dependencies.
+    Report the availability of the application and its external dependencies.
+    
+    Returns:
+        JSONResponse: A health report with application metadata and the status of
+            the database, Redis, and RabbitMQ. Uses HTTP 200 when all checks
+            succeed and HTTP 503 when any dependency is unavailable.
     """
     health_status = {
         "status": "ok",
