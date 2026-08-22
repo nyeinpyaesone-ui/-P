@@ -1,0 +1,82 @@
+# This workflow deploys to Render after successful CI build
+
+name: Deploy to Render
+
+on:
+  # Trigger on push to main branch
+  push:
+    branches: [ "main" ]
+  
+  # Allow manual deployment from Actions tab
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Render Environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - preview
+      env_vars:
+        description: 'Environment Variables (JSON format, optional)'
+        required: false
+        type: string
+        example: '{"NODE_ENV": "production", "API_URL": "https://api.example.com"}'
+
+# Set environment variables for all jobs
+env:
+  NODE_ENV: production
+  RENDER_REGION: us-east
+
+# Cancel redundant deployments
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      # Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      # Deploy to Render using official action
+      - name: Deploy to Render
+        uses: render-oss/github-action@v1
+        with:
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          service-id: ${{ secrets.RENDER_SERVICE_ID }}
+          environment: ${{ inputs.environment || 'production' }}
+      
+      # Alternative: Deploy via Render CLI (if using different service type)
+      - name: Deploy via Render CLI
+        if: false  # Set to true if using CLI instead of action
+        run: |
+          npm install -g @render-cloud/cli
+          render login --api-key ${{ secrets.RENDER_API_KEY }}
+          render deploy --service ${{ secrets.RENDER_SERVICE_ID }}
+      
+      # Parse and set custom environment variables if provided
+      - name: Set Custom Environment Variables
+        if: ${{ inputs.env_vars != '' }}
+        run: |
+          echo "Custom environment variables provided:"
+          echo "${{ inputs.env_vars }}" | jq .
+          # You can use these vars in subsequent steps or pass to Render
+          export CUSTOM_ENV_VARS='${{ inputs.env_vars }}'
+      
+      # Verify deployment status
+      - name: Check Deployment Status
+        run: |
+          echo "Deployment initiated to Render"
+          echo "Service ID: ${{ secrets.RENDER_SERVICE_ID }}"
+          echo "Environment: ${{ inputs.environment || 'production' }}"
+          echo "Region: ${{ env.RENDER_REGION }}"
+          echo "Node Env: ${{ env.NODE_ENV }}"
+          echo "Check https://dashboard.render.com for deployment logs"
