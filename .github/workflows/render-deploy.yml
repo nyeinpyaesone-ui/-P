@@ -22,7 +22,7 @@ on:
         description: 'Environment Variables (JSON format, optional)'
         required: false
         type: string
-        example: '{"NODE_ENV": "production", "API_URL": "https://api.example.com"}'
+        example: '{"NODE_ENV": "production", "API_URL": "https://api.render.com/deploy/srv-da1vjkc9v7es738de6ag?key=kHLiFSLEq28"}'
 
 # Set environment variables for all jobs
 env:
