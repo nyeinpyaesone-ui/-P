@@ -27,7 +27,7 @@ on:
 # Set environment variables for all jobs
 env:
   NODE_ENV: production
-  RENDER_REGION: us-east
+  RENDER_REGION: singapore
 
 # Cancel redundant deployments
 concurrency:
